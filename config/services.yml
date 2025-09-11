@@ -1,0 +1,16 @@
+# config/services.yml
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    # Makes the controller a public service
+    Panniz\ProductFeatureColumn\Controller\Admin\ConfigureController:
+        public: true
+        tags:
+            - 'controller.service_arguments'
+    # Makes our Form Type a service. 'arguments' or 'bind' are no longer necessary.
+    # Autowiring will handle the standard dependencies it needs (if any).
+    Panniz\ProductFeatureColumn\Form\Type\FeatureChoiceType:
+        public: true

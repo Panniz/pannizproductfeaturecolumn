@@ -1,0 +1,25 @@
+{% extends '@PrestaShop/Admin/layout.html.twig' %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col">
+            {{ form_start(configureForm) }}
+            <div class="card">
+                <h3 class="card-header">
+                    <i class="material-icons">settings</i> {{ 'Configurazione Colonna Caratteristica'|trans({}, 'Modules.Pannizproductfeaturecolumn.Admin') }}
+                </h3>
+                <div class="card-body">
+                    <div class="form-group">
+                        {{ form_row(configureForm.feature_id) }}
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-end">
+                        {{ form_widget(configureForm.save) }}
+                    </div>
+                </div>
+            </div>
+            {{ form_end(configureForm) }}
+        </div>
+    </div>
+{% endblock %}

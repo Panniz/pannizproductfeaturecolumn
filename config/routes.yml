@@ -1,0 +1,7 @@
+panniz_configure_feature_column:
+    path: /panniz/feature-column/configure
+    methods: [GET, POST]
+    defaults:
+      _controller: Panniz\ProductFeatureColumn\Controller\Admin\ConfigureController::index
+      _legacy_controller: 'AdminPannizProductFeatureColumnConfigure'
+      _legacy_link: 'AdminPannizProductFeatureColumnConfigure'

@@ -1,0 +1,23 @@
+{
+  "name": "panniz/pannizproductfeaturecolumn",
+  "description": "Aggiunge una colonna con il valore di una caratteristica alla lista prodotti del BO.",
+  "type": "prestashop-module",
+  "license": "AFL-3.0",
+  "authors": [
+    {
+      "name": "Panniz",
+      "email": "contact@example.com"
+    }
+  ],
+  "require": {
+    "php": ">=7.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Panniz\\ProductFeatureColumn\\": "src/"
+    }
+  },
+  "config": {
+    "prepend-autoloader": false
+  }
+}
