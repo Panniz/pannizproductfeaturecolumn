@@ -1,0 +1,115 @@
+# Crea la release del modulo PrestaShop.
+#
+# Uso: aggiorna la versione nel file principale del modulo (e in config.xml,
+# se presente), fai commit e poi:
+#
+#   git tag v1.2.3 && git push origin v1.2.3
+#
+# Il workflow controlla che il tag corrisponda alla versione del modulo,
+# costruisce lo zip installabile da back office (cartella <modulo>/ con
+# vendor/ e asset compilati, senza file di sviluppo) e crea la GitHub Release
+# con lo zip allegato.
+#
+# Avviato a mano da Actions ("Run workflow") costruisce solo lo zip e lo
+# lascia come artifact del run, senza creare la release.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  MODULE: ${{ github.event.repository.name }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Controlla la versione
+        id: version
+        run: |
+          VERSION=$(sed -nE "s/.*\\\$this->version = '([^']+)'.*/\1/p" "$MODULE.php" | head -n1)
+          if [ -z "$VERSION" ]; then
+            echo "::error file=$MODULE.php::Versione non trovata in $MODULE.php"
+            exit 1
+          fi
+          if [ -f config.xml ]; then
+            XML_VERSION=$(sed -nE 's/.*<version>(<!\[CDATA\[)?([^]<]+)(\]\]>)?<\/version>.*/\2/p' config.xml | head -n1)
+            if [ "$XML_VERSION" != "$VERSION" ]; then
+              echo "::error file=config.xml::config.xml dice $XML_VERSION, $MODULE.php dice $VERSION"
+              exit 1
+            fi
+          fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "${GITHUB_REF_NAME#v}" != "$VERSION" ]; then
+            echo "::error::Il tag $GITHUB_REF_NAME non corrisponde alla versione del modulo ($VERSION)"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Prepara la cartella del modulo
+        run: |
+          mkdir -p "build/$MODULE"
+          git archive HEAD | tar -x -C "build/$MODULE"
+
+      - uses: shivammathur/setup-php@v2
+        if: hashFiles('composer.json') != ''
+        with:
+          php-version: '8.1'
+          tools: composer:v2
+          coverage: none
+
+      - name: Dipendenze Composer
+        if: hashFiles('composer.json') != ''
+        working-directory: build/${{ env.MODULE }}
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+      - uses: actions/setup-node@v4
+        if: hashFiles('package.json') != ''
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Compila gli asset
+        if: hashFiles('package.json') != ''
+        working-directory: build/${{ env.MODULE }}
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Rimuovi i file di sviluppo
+        working-directory: build/${{ env.MODULE }}
+        run: |
+          rm -rf node_modules _dev .github
+          rm -f .gitignore .gitattributes package.json package-lock.json \
+                webpack.config.js postcss.config.js tsconfig.json \
+                README.md CONTEXT.md AGENTS.md CLAUDE.md
+          find . -name '*.map' -delete
+
+      - name: Crea lo zip
+        id: zip
+        run: |
+          ZIP="$MODULE-${{ steps.version.outputs.version }}.zip"
+          (cd build && zip -qr "../$ZIP" "$MODULE")
+          unzip -l "$ZIP" | tail -n1
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.MODULE }}-${{ steps.version.outputs.version }}
+          path: ${{ steps.zip.outputs.zip }}
+
+      - name: Crea la GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "${{ steps.zip.outputs.zip }}" \
+            --title "$MODULE ${{ steps.version.outputs.version }}" \
+            --generate-notes
